@@ -33,11 +33,11 @@ on:
   workflow_dispatch:
     inputs:
       old_package_name:
-        description: 'পুরনো Package Name (যেমন: com.konasl.nagad)'
+        description: 'পুরনো Package Name (যেমন: com.konasl.nagad বা com.srizwan.Task — বড় হাতের অক্ষর চলবে)'
         required: true
         type: string
       new_package_name:
-        description: 'নতুন Package Name (যেমন: com.example.newapp)'
+        description: 'নতুন Package Name (যেমন: com.example.newapp বা com.srizwan.Task — বড় হাতের অক্ষর চলবে)'
         required: true
         type: string
 
@@ -63,7 +63,9 @@ jobs:
           set -e
 
           echo "== Validating package names =="
-          PKG_REGEX='^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'
+          # FIX: বড় হাতের (A-Z) অক্ষরও এখন অনুমোদিত (যেমন: com.srizwan.Task)।
+          # প্রতিটা অংশ অক্ষর দিয়ে শুরু হবে, তারপর অক্ষর/সংখ্যা/underscore থাকতে পারবে।
+          PKG_REGEX='^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$'
 
           if [[ ! "$OLD_PKG" =~ $PKG_REGEX ]]; then
             echo "::error::OLD package name '$OLD_PKG' সঠিক ফরম্যাটে নেই (যেমন com.example.app)"
@@ -113,7 +115,8 @@ jobs:
 
           echo "== Step 2: Replacing text references across the whole repo =="
           # ফিক্সড-স্ট্রিং সার্চ (grep -F) ব্যবহার করা হচ্ছে যাতে '.'
-          # regex wildcard হিসেবে ভুল ম্যাচ না করে।
+          # regex wildcard হিসেবে ভুল ম্যাচ না করে। এটা case-sensitive, তাই
+          # Task আর task আলাদা ধরা হবে (Linux runner-এ ফোল্ডারও case-sensitive)।
           FILE_LIST=$(grep -rlF "$OLD_PKG" \
             --include="*.kt" --include="*.java" --include="*.xml" \
             --include="*.gradle" --include="*.gradle.kts" \
