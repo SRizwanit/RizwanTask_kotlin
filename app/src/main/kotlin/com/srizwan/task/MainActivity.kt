@@ -29,6 +29,7 @@ object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
     const val TASK = "task"
+    const val SIGNUP = "signup"
 }
 
 class MainActivity : ComponentActivity() {
@@ -58,7 +59,19 @@ private fun AppNav() {
                 }
             }
         }
-        composable(Routes.LOGIN) { PlaceholderScreen("লগইন") }
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                onLoggedIn = {
+                    nav.navigate(Routes.TASK) { popUpTo(Routes.LOGIN) { inclusive = true } }
+                },
+                onSignup = { phone, pin ->
+                    SignupDraft.phone = phone
+                    SignupDraft.pin = pin
+                    nav.navigate(Routes.SIGNUP)
+                }
+            )
+        }
+        composable(Routes.SIGNUP) { PlaceholderScreen("সাইনআপ") }
         composable(Routes.TASK) { PlaceholderScreen("টাস্ক") }
     }
 }
@@ -88,4 +101,10 @@ private fun PlaceholderScreen(title: String) {
             )
         }
     }
+}
+
+/** Login → Signup-এ ফোন ও PIN পাঠানোর জন্য (React-এর sessionStorage kp_signup-এর মতো, শুধু মেমোরিতে) */
+object SignupDraft {
+    var phone: String = ""
+    var pin: String = ""
 }
