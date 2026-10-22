@@ -30,11 +30,12 @@
     </queries>
 
     <application
-        android:allowBackup="false"
+        android:name=".App"
+        android:allowBackup="true"
         android:icon="@drawable/rizwantask"
         android:label="RizwanTask 📑"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="false"
+        android:usesCleartextTraffic="true"
         android:enableOnBackInvokedCallback="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
