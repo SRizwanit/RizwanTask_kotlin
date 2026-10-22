@@ -1,1 +1,58 @@
+name: Android Build
 
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Generate and Release APK
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      # FIX: 8.11.1 → 8.13 — AGP 8.13.2 এর ডিফল্ট/ন্যূনতম Gradle রিকোয়ারমেন্টের
+      # সাথে মিলিয়ে আপডেট করা হলো (আগের turn এ সাজেস্ট করা নিরাপদ AGP আপগ্রেড
+      # পাথ ধরে)। আপনার build.gradle.kts এর AGP ভার্সনের সাথে এটা মিলিয়ে রাখুন —
+      # AGP 8.13.2 হলে Gradle 8.13 ঠিক আছে, AGP 9.4.0 হলে নিচে '9.7.0' ব্যবহার করুন।
+      - name: Setup Gradle 9.7.0
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '9.7.0'
+
+      - name: Verify Gradle Version
+        run: gradle --version
+
+      - name: Build Debug APK
+        run: gradle assembleDebug
+
+      - name: Verify APK
+        run: |
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/debug/app-debug.apk
+          tag_name: build-${{ github.run_number }}
+          name: Nagad App v${{ github.run_number }}
+          body: |
+            Android APK successfully built.
+
+            Download:
+            app-debug.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
