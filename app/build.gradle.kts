@@ -1,8 +1,16 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+fun cfg(key: String): String = (localProps.getProperty(key) ?: System.getenv(key) ?: "").replace("\"", "")
 
 android {
     namespace = "com.srizwan.task"
@@ -16,6 +24,11 @@ android {
         versionName = "1.0.0"
         vectorDrawables.useSupportLibrary = true
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "SB_URL", "\"${cfg("SB_URL")}\"")
+        buildConfigField("String", "SB_KEY", "\"${cfg("SB_KEY")}\"")
+        buildConfigField("String", "ADMIN_PHONE", "\"${cfg("ADMIN_PHONE")}\"")
+        buildConfigField("String", "ADMIN_WA", "\"${cfg("ADMIN_WA")}\"")
     }
 
     buildTypes {
