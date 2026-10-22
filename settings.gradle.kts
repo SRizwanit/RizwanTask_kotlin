@@ -6,7 +6,6 @@ pluginManagement {
     }
 }
 dependencyResolutionManagement {
-    // এই লাইনটি রিপোজিটরি কনফ্লিক্ট দূর করবে
     repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
     repositories {
         google()
@@ -14,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Nagad"
+rootProject.name = "RizwanTask"
 include(":app")
