@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.bKash.customerapp"
+    namespace = "com.srizwan.task"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.rizwantask.app"
+        applicationId = "com.srizwan.task"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
