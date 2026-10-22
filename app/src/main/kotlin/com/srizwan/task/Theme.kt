@@ -2,14 +2,17 @@ package com.srizwan.task
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
 
 enum class ThemeMode { System, Light, Dark }
 
@@ -101,7 +104,31 @@ fun RizwanTheme(
     CompositionLocalProvider(LocalExtraColors provides if (dark) DarkExtra else LightExtra) {
         MaterialTheme(
             colorScheme = if (dark) DarkScheme else LightScheme,
+            typography = appTypography(AppFonts.ui),
             content = content
         )
     }
+}
+
+/** সব Material Text-এ ডিফল্ট ফন্ট = Anek Bangla (React-এর --ui)। ডাউনলোড শেষ হলে নিজে বদলে যায়। */
+@Composable
+private fun appTypography(family: FontFamily): Typography = remember(family) {
+    val t = Typography()
+    t.copy(
+        displayLarge = t.displayLarge.copy(fontFamily = family),
+        displayMedium = t.displayMedium.copy(fontFamily = family),
+        displaySmall = t.displaySmall.copy(fontFamily = family),
+        headlineLarge = t.headlineLarge.copy(fontFamily = family),
+        headlineMedium = t.headlineMedium.copy(fontFamily = family),
+        headlineSmall = t.headlineSmall.copy(fontFamily = family),
+        titleLarge = t.titleLarge.copy(fontFamily = family),
+        titleMedium = t.titleMedium.copy(fontFamily = family),
+        titleSmall = t.titleSmall.copy(fontFamily = family),
+        bodyLarge = t.bodyLarge.copy(fontFamily = family),
+        bodyMedium = t.bodyMedium.copy(fontFamily = family),
+        bodySmall = t.bodySmall.copy(fontFamily = family),
+        labelLarge = t.labelLarge.copy(fontFamily = family),
+        labelMedium = t.labelMedium.copy(fontFamily = family),
+        labelSmall = t.labelSmall.copy(fontFamily = family)
+    )
 }

@@ -71,7 +71,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -220,7 +219,7 @@ fun SplashScreen(hasSession: Boolean, onFinish: (String) -> Unit) {
                 text = BISMILLAH,
                 modifier = Modifier.graphicsLayer { alpha = seg(clock.value, 300, 1200) },
                 style = TextStyle(
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = AppFonts.amiri,
                     fontSize = bsmSp.sp,
                     lineHeight = (bsmSp * 1.5f).sp,
                     color = G1,
@@ -570,9 +569,10 @@ private fun LogoMark(clock: State<Long>, reduce: Boolean, sizeDp: Dp) {
 private fun Title(clock: State<Long>, reduce: Boolean, fontSizeSp: Float) {
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
-    val style = remember(fontSizeSp) {
+    val titleFont = AppFonts.display
+    val style = remember(fontSizeSp, titleFont) {
         TextStyle(
-            fontFamily = FontFamily.Serif,
+            fontFamily = titleFont,
             fontWeight = FontWeight.Bold,
             fontSize = fontSizeSp.sp,
             letterSpacing = 0.01.em
