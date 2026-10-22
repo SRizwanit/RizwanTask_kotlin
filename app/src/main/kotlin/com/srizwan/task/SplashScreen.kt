@@ -605,7 +605,7 @@ private fun Title(clock: State<Long>, reduce: Boolean, fontSizeSp: Float) {
                 tileMode = TileMode.Repeated
             )
             if (enter > 0f) {
-                translate(left = x, top = (1f - enter) * 18f * density) {
+                translate(left = x, top = (1f - enter) * 18f * density.density) {
                     drawText(lr, brush = brush, alpha = enter)
                 }
             }
