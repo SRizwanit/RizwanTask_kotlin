@@ -99,11 +99,6 @@ private val PopEase = CubicBezierEasing(0.3f, 1.6f, 0.5f, 1f)
 private val LoadEase = CubicBezierEasing(0.45f, 0.05f, 0.25f, 1f)
 private val CssEase = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1f)
 
-// Typewriter timing constants (shared between Title composable and finish signal)
-private const val TYPE_START_MS = 1150L
-private const val CHAR_INTERVAL_MS = 110L
-private const val CHAR_POP_MS = 160L
-
 private fun seg(ms: Long, delayMs: Long, durMs: Long, easing: Easing = LinearEasing): Float {
     val x = ((ms - delayMs).toFloat() / durMs).coerceIn(0f, 1f)
     return easing.transform(x)
@@ -151,30 +146,10 @@ fun SplashScreen(hasSession: Boolean, onFinish: (String) -> Unit) {
     val clock = rememberClock(reduce)
     var leaving by remember { mutableStateOf(false) }
 
-    // Typewriter finishes at: TYPE_START_MS + NAME.length * CHAR_INTERVAL_MS + CHAR_POP_MS
-    val typingDoneMs = TYPE_START_MS + NAME.length * CHAR_INTERVAL_MS + CHAR_POP_MS
-    // Small hold after typing completes before starting exit (feels less abrupt)
-    val holdAfterTypingMs = if (reduce) 0L else 350L
-
-    // PRIMARY transition trigger — fires exactly when typing completes
     LaunchedEffect(Unit) {
-        if (reduce) {
-            // Reduced-motion: keep the original short, simple path
-            delay(700L)
-        } else {
-            // Wait until typing animation fully completes, then a tiny hold
-            val wait = (typingDoneMs + holdAfterTypingMs).coerceAtLeast(0L)
-            delay(wait)
-        }
+        delay(if (reduce) 700L else 3250L)
         leaving = true
     }
-
-    // Fallback safety net — ensures we never get stuck (e.g. if composable pauses)
-    LaunchedEffect(Unit) {
-        delay(if (reduce) 1_000L else 5_000L)
-        leaving = true
-    }
-
     LaunchedEffect(leaving) {
         if (leaving) {
             delay(if (reduce) 0L else 420L)
@@ -236,11 +211,10 @@ fun SplashScreen(hasSession: Boolean, onFinish: (String) -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .systemBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // ---- Bismillah (moved up: bigger gap below so it never touches the logo) ----
             Text(
                 text = BISMILLAH,
                 modifier = Modifier.graphicsLayer { alpha = seg(clock.value, 300, 1200) },
@@ -253,18 +227,11 @@ fun SplashScreen(hasSession: Boolean, onFinish: (String) -> Unit) {
                     shadow = Shadow(Gold.copy(alpha = 0.35f), Offset.Zero, 18f)
                 )
             )
-            // Bigger gap so Bismillah clears the logo mark
-            Spacer(Modifier.height(48.dp))
-
+            Spacer(Modifier.height(18.dp))
             LogoMark(clock, reduce, markDp)
-
-            // Comfortable gap below the logo
-            Spacer(Modifier.height(30.dp))
-
+            Spacer(Modifier.height(26.dp))
             Title(clock, reduce, nameSp)
-
             Spacer(Modifier.height(10.dp))
-
             Text(
                 text = "কিতাব প্রুফিং",
                 modifier = Modifier
@@ -598,11 +565,6 @@ private fun LogoMark(clock: State<Long>, reduce: Boolean, sizeDp: Dp) {
     }
 }
 
-/**
- * "RizwanTask" with a typewriter reveal. Each letter appears ~110 ms apart
- * with a small scale-pop, followed by a blinking gold caret while typing.
- * When the last letter settles, the gold shimmer begins.
- */
 @Composable
 private fun Title(clock: State<Long>, reduce: Boolean, fontSizeSp: Float) {
     val measurer = rememberTextMeasurer()
@@ -622,8 +584,6 @@ private fun Title(clock: State<Long>, reduce: Boolean, fontSizeSp: Float) {
     val wDp = with(density) { totalPx.toDp() }
     val hDp = with(density) { heightPx.toDp() }
 
-    val typingDurationMs = NAME.length * CHAR_INTERVAL_MS
-
     Canvas(
         modifier = Modifier
             .size(wDp, hDp)
@@ -631,26 +591,11 @@ private fun Title(clock: State<Long>, reduce: Boolean, fontSizeSp: Float) {
     ) {
         val ms = clock.value
         val loopMs = if (reduce) 0L else ms
-        val d = density.density
-
-        val typedCount = if (reduce) NAME.length
-        else (((ms - TYPE_START_MS) / CHAR_INTERVAL_MS).toInt()).coerceIn(0, NAME.length)
-
-        val typingDone = reduce || ms >= TYPE_START_MS + typingDurationMs
-
         var x = 0f
         layouts.forEachIndexed { n, lr ->
             val w = lr.size.width.toFloat()
-
-            val charStart = TYPE_START_MS + n * CHAR_INTERVAL_MS
-            val popT = seg(ms, charStart, CHAR_POP_MS, PopEase)
-            val appear = if (reduce) 1f
-            else if (ms < charStart) 0f
-            else popT.coerceIn(0f, 1f)
-
-            val shimmerActive = reduce || typingDone
-            val frac = if (!shimmerActive || loopMs < 2200L) 0f
-            else ((loopMs - 2200L) % 3400L) / 3400f
+            val enter = seg(ms, 1150L + n * 60L, 700L, RiseEase)
+            val frac = if (loopMs < 2200L) 0f else ((loopMs - 2200L) % 3400L) / 3400f
             val pPercent = 130f - 260f * frac
             val offset = -1.6f * w * pPercent / 100f
             val brush = Brush.linearGradient(
@@ -659,42 +604,13 @@ private fun Title(clock: State<Long>, reduce: Boolean, fontSizeSp: Float) {
                 end = Offset(offset + 2.6f * w, 0f),
                 tileMode = TileMode.Repeated
             )
-
-            if (appear > 0f) {
-                val scale = 0.6f + 0.4f * appear
-                val riseY = (1f - appear) * 6f * d
-                translate(left = x, top = riseY) {
-                    withTransform({
-                        scale(scale, scale, Offset(w / 2f, lr.size.height.toFloat()))
-                    }) {
-                        drawText(lr, brush = brush, alpha = appear)
-                    }
+            if (enter > 0f) {
+                translate(left = x, top = (1f - enter) * 18f * density.density) {
+                    drawText(lr, brush = brush, alpha = enter)
                 }
             }
             x += w
         }
-
-        if (!reduce && !typingDone) {
-    // আগে: val cursorX = layouts.take(typedCount).sumOf { it.size.width.toFloat() }
-    val cursorX = layouts.take(typedCount).sumOf { it.size.width }.toFloat()
-
-    val blinkOn = ((ms - TYPE_START_MS) % 500L) < 300L
-    if (blinkOn && typedCount < NAME.length) {
-        val cursorW = 2.2f * d
-        val cursorH = heightPx * 0.82f
-        val cursorTop = (heightPx - cursorH) / 2f
-        drawRoundRect(
-            color = Gold.copy(alpha = 0.45f),
-            topLeft = Offset(cursorX - 1f * d, cursorTop),
-            size = Size(cursorW + 3f * d, cursorH),
-            cornerRadius = CornerRadius(2f * d)
-        )
-        drawRoundRect(
-            color = G1,
-            topLeft = Offset(cursorX + 1f * d, cursorTop),
-            size = Size(cursorW, cursorH),
-            cornerRadius = CornerRadius(1.1f * d)
-        )
     }
 }
 
