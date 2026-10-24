@@ -675,26 +675,26 @@ private fun Title(clock: State<Long>, reduce: Boolean, fontSizeSp: Float) {
         }
 
         if (!reduce && !typingDone) {
-            val cursorX = layouts.take(typedCount).sumOf { it.size.width.toFloat() }
-            val blinkOn = ((ms - TYPE_START_MS) % 500L) < 300L
-            if (blinkOn && typedCount < NAME.length) {
-                val cursorW = 2.2f * d
-                val cursorH = heightPx * 0.82f
-                val cursorTop = (heightPx - cursorH) / 2f
-                drawRoundRect(
-                    color = Gold.copy(alpha = 0.45f),
-                    topLeft = Offset(cursorX - 1f * d, cursorTop),
-                    size = Size(cursorW + 3f * d, cursorH),
-                    cornerRadius = CornerRadius(2f * d)
-                )
-                drawRoundRect(
-                    color = G1,
-                    topLeft = Offset(cursorX + 1f * d, cursorTop),
-                    size = Size(cursorW, cursorH),
-                    cornerRadius = CornerRadius(1.1f * d)
-                )
-            }
-        }
+    // আগে: val cursorX = layouts.take(typedCount).sumOf { it.size.width.toFloat() }
+    val cursorX = layouts.take(typedCount).sumOf { it.size.width }.toFloat()
+
+    val blinkOn = ((ms - TYPE_START_MS) % 500L) < 300L
+    if (blinkOn && typedCount < NAME.length) {
+        val cursorW = 2.2f * d
+        val cursorH = heightPx * 0.82f
+        val cursorTop = (heightPx - cursorH) / 2f
+        drawRoundRect(
+            color = Gold.copy(alpha = 0.45f),
+            topLeft = Offset(cursorX - 1f * d, cursorTop),
+            size = Size(cursorW + 3f * d, cursorH),
+            cornerRadius = CornerRadius(2f * d)
+        )
+        drawRoundRect(
+            color = G1,
+            topLeft = Offset(cursorX + 1f * d, cursorTop),
+            size = Size(cursorW, cursorH),
+            cornerRadius = CornerRadius(1.1f * d)
+        )
     }
 }
 
