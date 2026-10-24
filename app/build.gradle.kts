@@ -1,16 +1,12 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val localProps = Properties().apply {
-    val f = rootProject.file("local.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
-}
-fun cfg(key: String): String = (localProps.getProperty(key) ?: System.getenv(key) ?: "").replace("\"", "")
+fun cfg(key: String): String = project.findProperty(key)?.toString()
+    ?: providers.gradleProperty(key).orNull
+    ?: ""
 
 android {
     namespace = "com.srizwan.task"
