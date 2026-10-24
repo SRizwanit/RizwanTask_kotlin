@@ -28,8 +28,11 @@ import androidx.navigation.compose.rememberNavController
 object Routes {
     const val SPLASH = "splash"
     const val LOGIN = "login"
-    const val TASK = "task"
     const val SIGNUP = "signup"
+    const val TASK = "task"
+    const val PROFILE = "profile"
+    const val ADMIN = "admin"
+    const val SUPPORT = "support"
 }
 
 class MainActivity : ComponentActivity() {
@@ -37,8 +40,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         window.setBackgroundDrawable(ColorDrawable(0xFF041A15.toInt()))
         enableEdgeToEdge()
+        ThemeStore.load(this)
         setContent {
-            RizwanTheme {
+            RizwanTheme(mode = ThemeStore.mode) {
                 AppNav()
             }
         }
@@ -61,18 +65,31 @@ private fun AppNav() {
         }
         composable(Routes.LOGIN) {
             LoginScreen(
-                onLoggedIn = {
-                    nav.navigate(Routes.TASK) { popUpTo(Routes.LOGIN) { inclusive = true } }
+                onSuccess = {
+                    nav.navigate(Routes.TASK) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
                 },
-                onSignup = { phone, pin ->
-                    SignupDraft.phone = phone
-                    SignupDraft.pin = pin
+                onSignup = {
                     nav.navigate(Routes.SIGNUP)
                 }
             )
         }
-        composable(Routes.SIGNUP) { PlaceholderScreen("সাইনআপ") }
-        composable(Routes.TASK) { PlaceholderScreen("টাস্ক") }
+        composable(Routes.SIGNUP) {
+            SignupScreen(
+                onSuccess = {
+                    nav.navigate(Routes.TASK) {
+                        popUpTo(Routes.SIGNUP) { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable(Routes.TASK) {
+            TaskScreen(navController = nav)
+        }
+        composable(Routes.PROFILE) { ProfileScreen(navController = nav) }
+        composable(Routes.SUPPORT) { PlaceholderScreen("সাপোর্ট") }
+        composable(Routes.ADMIN) { PlaceholderScreen("অ্যাডমিন") }
     }
 }
 
@@ -101,10 +118,4 @@ private fun PlaceholderScreen(title: String) {
             )
         }
     }
-}
-
-/** Login → Signup-এ ফোন ও PIN পাঠানোর জন্য (React-এর sessionStorage kp_signup-এর মতো, শুধু মেমোরিতে) */
-object SignupDraft {
-    var phone: String = ""
-    var pin: String = ""
 }

@@ -1,46 +1,57 @@
 package com.srizwan.task
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
-import java.io.File
+import android.os.Build
+import android.os.Process
+import java.io.PrintWriter
+import java.io.StringWriter
 import kotlin.system.exitProcess
 
 class App : Application() {
+    companion object {
+        lateinit var instance: Application
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
         CrashHandler.install(this)
         AppFonts.start(this)
     }
-}
 
-object CrashHandler {
-    private const val MAX_CHARS = 100_000
-
-    fun install(app: Application) {
-        if (processName().endsWith(":debug")) return
-        val previous = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
-            try {
-                val trace = buildString {
-                    append("থ্রেড: ").append(thread.name).append('\n')
-                    append(android.util.Log.getStackTraceString(error))
-                }.take(MAX_CHARS)
-                val intent = Intent(app, DebugActivity::class.java).apply {
-                    putExtra(DebugActivity.EXTRA_TRACE, trace)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+    object CrashHandler {
+        fun install(app: Application) {
+            val def = Thread.getDefaultUncaughtExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler { t, e ->
+                try {
+                    val trace = StringWriter().also { e.printStackTrace(PrintWriter(it)) }.toString()
+                    val intent = Intent(app, DebugActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        putExtra("trace", trace)
+                    }
+                    app.startActivity(intent)
+                    Process.killProcess(Process.myPid())
+                    exitProcess(1)
+                } catch (ignored: Exception) {
+                    def?.uncaughtException(t, e)
                 }
-                app.startActivity(intent)
-            } catch (_: Throwable) {
-                previous?.uncaughtException(thread, error)
             }
-            android.os.Process.killProcess(android.os.Process.myPid())
-            exitProcess(10)
         }
     }
 
     private fun processName(): String = try {
-        File("/proc/self/cmdline").readText().trim { it == '\u0000' || it.isWhitespace() }
-    } catch (_: Throwable) {
+        if (Build.VERSION.SDK_INT >= 28) {
+            android.app.Application.getProcessName()
+        } else {
+            @Suppress("DEPRECATION")
+            android.app.ActivityManager::class.java
+                .getDeclaredMethod("getCurrentProcessName")
+                .invoke(null) as? String ?: ""
+        }
+    } catch (e: Exception) {
         ""
     }
 }

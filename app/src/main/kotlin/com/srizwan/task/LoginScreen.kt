@@ -1,285 +1,906 @@
 package com.srizwan.task
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
-import androidx.compose.foundation.Image
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.srizwan.task.data.Api
+import com.srizwan.task.data.Phone
+import com.srizwan.task.data.PinHash
+import com.srizwan.task.data.UserRepo
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.json.JSONObject
 import java.net.URLEncoder
-
-private fun mmss(s: Int) = "%02d:%02d".format(s / 60, s % 60)
 
 @Composable
 fun LoginScreen(
-    onLoggedIn: () -> Unit,
-    onSignup: (phone: String, pin: String) -> Unit,
+    onSuccess: () -> Unit,
+    onSignup: () -> Unit,
     vm: LoginViewModel = viewModel()
 ) {
+    val state by vm.state.collectAsState()
     val context = LocalContext.current
-    val extra = AppColors.extra
-    val cs = MaterialTheme.colorScheme
 
-    fun wa(msg: String) {
-        val url = "https://wa.me/${BuildConfig.ADMIN_WA}?text=" + URLEncoder.encode(msg, "UTF-8").replace("+", "%20")
-        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-    }
-
-    LaunchedEffect(vm.event) {
-        when (val e = vm.event) {
-            LoginEvent.GoTask -> { vm.consumeEvent(); onLoggedIn() }
-            is LoginEvent.GoSignup -> { vm.consumeEvent(); onSignup(e.phone, e.pin) }
-            is LoginEvent.Toast -> { Toast.makeText(context, e.msg, Toast.LENGTH_SHORT).show(); vm.consumeEvent() }
-            null -> Unit
+    LaunchedEffect(state.success) {
+        if (state.success) {
+            delay(200)
+            onSuccess()
         }
     }
-
-    val phoneFocus = remember { FocusRequester() }
-    val otpFocus = remember { FocusRequester() }
-    val pinFocus = remember { FocusRequester() }
-    LaunchedEffect(vm.focusTick, vm.mode) {
-        if (vm.focusTick == 0) return@LaunchedEffect
-        runCatching {
-            when (vm.step) {
-                LoginStep.PHONE -> phoneFocus.requestFocus()
-                LoginStep.OTP -> otpFocus.requestFocus()
-                LoginStep.PIN -> pinFocus.requestFocus()
-                LoginStep.DEV -> Unit
-            }
-        }
-    }
-
-    val setup = vm.mode != PinMode.LOGIN
-    val pinLabel = when (vm.mode) {
-        PinMode.LOGIN -> "৪ ডিজিটের PIN দিন"
-        PinMode.SETUP_EXISTING -> "আপনার অ্যাকাউন্টের জন্য নতুন ৪ ডিজিটের PIN সেট করুন"
-        PinMode.SETUP_NEW -> "আপনার নতুন একাউন্টের জন্য ৪ ডিজিটের PIN সেট করুন"
-    }
-    val pinBtn = when (vm.mode) {
-        PinMode.LOGIN -> "লগইন করুন"
-        PinMode.SETUP_EXISTING -> "PIN সেট করুন"
-        PinMode.SETUP_NEW -> "পরবর্তী ধাপ"
-    }
-    val devMsg = if (vm.blockReason == BlockReason.BOUND)
-        "এই একাউন্টটি অন্য একটি ডিভাইসে যুক্ত আছে। অ্যাডমিন ডিভাইস রিসেট করে দিলে নিচের \u2018আবার চেষ্টা করুন\u2019 বাটনে চাপ দিন।"
-    else "এই মোবাইলে ইতিমধ্যে অন্য একটি একাউন্ট ব্যবহার করা হচ্ছে। একটি ডিভাইসে একটি মাত্র একাউন্ট চালানো যায়।"
 
     Box(
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
-            .background(extra.canvas)
+            .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
-            .imePadding()
     ) {
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 24.dp)
-                .widthIn(max = 420.dp)
-                .align(Alignment.TopCenter),
+                .padding(horizontal = 18.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // .brand
             Spacer(Modifier.height(18.dp))
-            Box(
-                Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFF0A4F40), Color(0xFF12896D)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(painterResource(R.drawable.rizwantask), contentDescription = null, modifier = Modifier.size(48.dp))
-            }
-            Spacer(Modifier.height(12.dp))
-            Text("কিতাব প্রুফিং", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = cs.onBackground)
-            Spacer(Modifier.height(8.dp))
-            Text("মোবাইল নাম্বার দিয়ে লগইন করুন", fontSize = 13.sp, color = extra.muted)
-            Spacer(Modifier.height(22.dp))
 
-            // .card
+            // Brand + logo
             Column(
-                Modifier
-                    .fillMaxWidth()
-                    .shadow(12.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black.copy(alpha = .06f))
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(cs.background)
-                    .border(1.dp, extra.line, RoundedCornerShape(16.dp))
-                    .padding(20.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                when (vm.step) {
-                    LoginStep.PHONE -> {
-                        FieldLabel("ফোন নাম্বার")
-                        OutlinedTextField(
-                            value = vm.phoneIn,
-                            onValueChange = vm::setPhoneInput,
-                            placeholder = { Text("017XXXXXXXX") },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
-                            keyboardActions = KeyboardActions(onAny = { vm.onPhone() }),
-                            modifier = Modifier.fillMaxWidth().focusRequester(phoneFocus)
-                        )
-                        PrimaryButton("পরবর্তী", !vm.busy, Modifier.padding(top = 16.dp)) { vm.onPhone() }
-                    }
-                    LoginStep.OTP -> {
-                        FieldLabel("৬ ডিজিটের OTP কোড দিন")
-                        PinField(vm.otp, vm::setOtpInput, "------", false, otpFocus) { vm.onOtp() }
-                        PrimaryButton("ভেরিফাই করুন", !vm.busy, Modifier.padding(top = 16.dp)) { vm.onOtp() }
-                        LinkButton(
-                            if (vm.left > 0) "OTP আবার পাঠান (${mmss(vm.left)})" else "OTP আবার পাঠান",
-                            enabled = vm.left <= 0
-                        ) { vm.onResend() }
-                    }
-                    LoginStep.PIN -> {
-                        FieldLabel(pinLabel)
-                        PinField(vm.pin, vm::setPinInput, "----", true, pinFocus) { vm.onPin() }
-                        if (setup) {
-                            Spacer(Modifier.height(12.dp))
-                            FieldLabel("PIN আবার দিন")
-                            PinField(vm.pin2, vm::setPin2Input, "----", true, null) { vm.onPin() }
-                        }
-                        PrimaryButton(pinBtn, !vm.busy, Modifier.padding(top = 16.dp)) { vm.onPin() }
-                        if (!setup) {
-                            LinkButton("PIN ভুলে গেছেন? অ্যাডমিনকে WhatsApp করুন") {
-                                wa("আসসালামু আলাইকুম, আমি কিতাব প্রুফিং অ্যাপে আমার PIN ভুলে গিয়েছি। আমার ফোন নাম্বার: ${vm.phone}। দয়া করে সাহায্য করুন।")
-                            }
-                        }
-                    }
-                    LoginStep.DEV -> {
-                        Text(devMsg, textAlign = TextAlign.Center, lineHeight = 1.7.em, color = cs.onBackground, modifier = Modifier.fillMaxWidth())
-                        OutlinedButton(
-                            onClick = vm::onRetry, enabled = !vm.busy,
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(48.dp)
-                        ) { Text("আবার চেষ্টা করুন", fontWeight = FontWeight.SemiBold) }
-                        PrimaryButton("অ্যাডমিনকে WhatsApp এ জানান", !vm.busy, Modifier.padding(top = 10.dp)) {
-                            wa("আসসালামু আলাইকুম, আমি কিতাব প্রুফিং অ্যাপে অন্য একটি ডিভাইস ব্যবহার করতে চাই। আমার ফোন নাম্বার: ${vm.phone}। দয়া করে আমার একাউন্টের ডিভাইস রিসেট করে দিন।")
-                        }
-                    }
-                }
-
-                if (vm.busy) {
-                    Box(Modifier.fillMaxWidth().padding(top = 12.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.5.dp, color = cs.primary)
-                    }
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primary,
+                            shape = RoundedCornerShape(22.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "📑",
+                        fontSize = 36.sp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
                 Text(
-                    vm.err, color = cs.error, fontSize = 12.5.sp, textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp).heightIn(min = 18.dp)
+                    text = "কিতাব প্রুফিং",
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
                 )
-                if (vm.step != LoginStep.PHONE) {
-                    LinkButton("অন্য নাম্বার ব্যবহার করবেন?", muted = true) { vm.onChange() }
+                Text(
+                    text = "মোবাইল নাম্বার দিয়ে লগইন করুন",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AppColors.extra.muted
+                )
+            }
+
+            Spacer(Modifier.height(22.dp))
+
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 2.dp
+            ) {
+                Box {
+                    Column(Modifier.padding(20.dp)) {
+                        when (state.step) {
+                            LoginStep.PHONE -> PhoneStep(
+                                phone = state.phoneIn,
+                                onPhoneChange = { vm.setPhone(it) },
+                                onNext = { vm.onPhone(context) },
+                                busy = state.busy,
+                                err = state.err
+                            )
+
+                            LoginStep.OTP -> OtpStep(
+                                otp = state.otp,
+                                onOtpChange = { vm.setOtp(it) },
+                                onVerify = { vm.onOtp(context) },
+                                onResend = { vm.onResend(context) },
+                                busy = state.busy,
+                                err = state.err,
+                                leftSec = state.leftSec,
+                                onChange = { vm.reset() }
+                            )
+
+                            LoginStep.PIN -> PinStep(
+                                mode = state.mode,
+                                pin = state.pin,
+                                pin2 = state.pin2,
+                                onPinChange = { vm.setPin(it) },
+                                onPin2Change = { vm.setPin2(it) },
+                                onSubmit = { vm.onPin(context, onSignup) },
+                                busy = state.busy,
+                                err = state.err,
+                                phone = state.phoneNorm,
+                                onChange = { vm.reset() }
+                            )
+
+                            LoginStep.DEVICE -> DeviceStep(
+                                reason = state.blockReason,
+                                phone = state.phoneNorm,
+                                busy = state.busy,
+                                err = state.err,
+                                onRetry = { vm.onRetry(context) },
+                                onWhatsapp = { url -> vm.openWhatsapp(context, url) }
+                            )
+                        }
+                    }
+
+                    if (state.busy) {
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .background(Color.Black.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
                 }
             }
 
+            if (state.step == LoginStep.OTP || state.step == LoginStep.PIN || state.step == LoginStep.DEVICE) {
+                Spacer(Modifier.height(10.dp))
+                TextButton(onClick = { vm.reset() }) {
+                    Text(
+                        "অন্য নাম্বার ব্যবহার করবেন?",
+                        color = AppColors.extra.muted,
+                        fontSize = 12.5.sp
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
             Text(
-                "নতুন ইউজার? OTP ভেরিফাই করার পর প্রোফাইল তৈরি করুন",
-                fontSize = 12.5.sp, color = extra.muted, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+                text = "নতুন ইউজার? OTP ভেরিফাই করার পর প্রোফাইল তৈরি করুন",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppColors.extra.muted,
+                textAlign = TextAlign.Center
             )
         }
     }
 
-    if (vm.showOtpDialog) {
-        AlertDialog(
-            onDismissRequest = { vm.showOtpDialog = false },
-            title = { Text("আপনার OTP কোড") },
-            text = {
-                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        vm.otpCode, fontSize = 32.sp, fontWeight = FontWeight.Bold, color = cs.primary,
-                        letterSpacing = 0.6.em, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp)
-                    )
-                    Text("২ মিনিটের মধ্যে কোডটি লিখুন", fontSize = 12.5.sp, color = extra.muted, textAlign = TextAlign.Center)
-                }
-            },
-            confirmButton = { Button(onClick = { vm.showOtpDialog = false }) { Text("ঠিক আছে") } }
-        )
+    if (state.showOtpDialog) {
+        OtpDialog(code = state.otpCode, onDismiss = { vm.dismissOtpDialog() })
     }
 }
 
 @Composable
-private fun FieldLabel(text: String) {
-    Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier.padding(bottom = 6.dp))
-}
-
-@Composable
-private fun PinField(
-    value: String, onChange: (String) -> Unit, placeholder: String, password: Boolean,
-    focus: FocusRequester?, onDone: () -> Unit
+private fun PhoneStep(
+    phone: String,
+    onPhoneChange: (String) -> Unit,
+    onNext: () -> Unit,
+    busy: Boolean,
+    err: String
 ) {
-    val style = TextStyle(textAlign = TextAlign.Center, letterSpacing = 0.6.em, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-    OutlinedTextField(
-        value = value,
-        onValueChange = onChange,
-        singleLine = true,
-        textStyle = style,
-        placeholder = { Text(placeholder, style = style, modifier = Modifier.fillMaxWidth()) },
-        visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(
-            keyboardType = if (password) KeyboardType.NumberPassword else KeyboardType.Number,
-            imeAction = ImeAction.Done
-        ),
-        keyboardActions = KeyboardActions(onAny = { onDone() }),
-        modifier = Modifier.fillMaxWidth().let { if (focus != null) it.focusRequester(focus) else it }
-    )
-}
+    val focusReq = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusReq.requestFocus() }
 
-@Composable
-private fun PrimaryButton(text: String, enabled: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    val cs = MaterialTheme.colorScheme
-    Button(
-        onClick = onClick, enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
-        contentPadding = PaddingValues(),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, disabledContainerColor = Color.Transparent),
-        modifier = modifier.fillMaxWidth().height(48.dp)
-    ) {
-        Box(
-            Modifier.fillMaxSize()
-                .background(Brush.linearGradient(listOf(cs.primary, AppColors.extra.primary2)), RoundedCornerShape(12.dp))
-                .let { if (!enabled) it.background(cs.background.copy(alpha = .4f), RoundedCornerShape(12.dp)) else it },
-            contentAlignment = Alignment.Center
-        ) { Text(text, color = cs.onPrimary, fontWeight = FontWeight.SemiBold) }
+    Column {
+        Text(
+            text = "ফোন নাম্বার",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = AppColors.extra.muted,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        OutlinedTextField(
+            value = phone,
+            onValueChange = onPhoneChange,
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusReq),
+            placeholder = { Text("017XXXXXXXX") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone, imeAction = ImeAction.Go),
+            keyboardActions = KeyboardActions(onGo = { onNext() }),
+            singleLine = true
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onNext,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy
+        ) {
+            Text("পরবর্তী")
+        }
+        ErrorText(err)
     }
 }
 
 @Composable
-private fun LinkButton(text: String, enabled: Boolean = true, muted: Boolean = false, onClick: () -> Unit) {
-    TextButton(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+private fun OtpStep(
+    otp: String,
+    onOtpChange: (String) -> Unit,
+    onVerify: () -> Unit,
+    onResend: () -> Unit,
+    busy: Boolean,
+    err: String,
+    leftSec: Int,
+    onChange: () -> Unit
+) {
+    val focusReq = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusReq.requestFocus() }
+
+    Column {
         Text(
-            text, fontSize = 12.5.sp, textAlign = TextAlign.Center,
-            fontWeight = if (muted) FontWeight.Normal else FontWeight.SemiBold,
-            color = if (muted) AppColors.extra.muted else MaterialTheme.colorScheme.primary
+            text = "৬ ডিজিটের OTP কোড দিন",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = AppColors.extra.muted,
+            modifier = Modifier.padding(bottom = 6.dp)
         )
+        OutlinedTextField(
+            value = otp,
+            onValueChange = { if (it.length <= 6) onOtpChange(it.filter { c -> c.isDigit() }) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusReq),
+            placeholder = { Text("------") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Go),
+            keyboardActions = KeyboardActions(onGo = { onVerify() }),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                textAlign = TextAlign.Center,
+                letterSpacing = 6.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onVerify,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy
+        ) {
+            Text("ভেরিফাই করুন")
+        }
+        ErrorText(err)
+        TextButton(
+            onClick = onResend,
+            enabled = leftSec <= 0,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                if (leftSec > 0) "OTP আবার পাঠান (${mmss(leftSec)})" else "OTP আবার পাঠান",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 12.5.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun PinStep(
+    mode: LoginMode,
+    pin: String,
+    pin2: String,
+    onPinChange: (String) -> Unit,
+    onPin2Change: (String) -> Unit,
+    onSubmit: () -> Unit,
+    busy: Boolean,
+    err: String,
+    phone: String,
+    onChange: () -> Unit
+) {
+    val focusReq = remember { FocusRequester() }
+    LaunchedEffect(mode) { focusReq.requestFocus() }
+    val setup = mode != LoginMode.LOGIN
+
+    val label = when (mode) {
+        LoginMode.LOGIN -> "৪ ডিজিটের PIN দিন"
+        LoginMode.SETUP_EXISTING -> "আপনার অ্যাকাউন্টের জন্য নতুন ৪ ডিজিটের PIN সেট করুন"
+        LoginMode.SETUP_NEW -> "আপনার নতুন একাউন্টের জন্য ৪ ডিজিটের PIN সেট করুন"
+    }
+    val btnText = when (mode) {
+        LoginMode.LOGIN -> "লগইন করুন"
+        LoginMode.SETUP_EXISTING -> "PIN সেট করুন"
+        LoginMode.SETUP_NEW -> "পরবর্তী ধাপ"
+    }
+
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = AppColors.extra.muted,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+        OutlinedTextField(
+            value = pin,
+            onValueChange = { if (it.length <= 4) onPinChange(it.filter { c -> c.isDigit() }) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusReq),
+            placeholder = { Text("----") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Next),
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                textAlign = TextAlign.Center,
+                letterSpacing = 6.sp,
+                fontWeight = FontWeight.Bold
+            )
+        )
+
+        AnimatedVisibility(setup, enter = fadeIn(), exit = fadeOut()) {
+            Column {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "PIN আবার দিন",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = AppColors.extra.muted,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                OutlinedTextField(
+                    value = pin2,
+                    onValueChange = { if (it.length <= 4) onPin2Change(it.filter { c -> c.isDigit() }) },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("----") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.NumberPassword,
+                        imeAction = ImeAction.Go
+                    ),
+                    keyboardActions = KeyboardActions(onGo = { onSubmit() }),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        textAlign = TextAlign.Center,
+                        letterSpacing = 6.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onSubmit,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy
+        ) {
+            Text(btnText)
+        }
+        ErrorText(err)
+
+        if (mode == LoginMode.LOGIN) {
+            TextButton(
+                onClick = {
+                    onChange()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "PIN ভুলে গেছেন? অ্যাডমিনকে WhatsApp করুন",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 12.5.sp,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceStep(
+    reason: BlockReason,
+    phone: String,
+    busy: Boolean,
+    err: String,
+    onRetry: () -> Unit,
+    onWhatsapp: (String) -> Unit
+) {
+    val msg = when (reason) {
+        BlockReason.BOUND -> "এই একাউন্টটি অন্য একটি ডিভাইসে যুক্ত আছে। অ্যাডমিন ডিভাইস রিসেট করে দিলে নিচের 'আবার চেষ্টা করুন' বাটনে চাপ দিন।"
+        BlockReason.USED -> "এই মোবাইলে ইতিমধ্যে অন্য একটি একাউন্ট ব্যবহার করা হচ্ছে। একটি ডিভাইসে একটি মাত্র একাউন্ট চালানো যায়।"
+    }
+    val waMsg = "আসসালামু আলাইকুম, আমি কিতাব প্রুফিং অ্যাপে অন্য একটি ডিভাইস ব্যবহার করতে চাই। আমার ফোন নাম্বার: $phone। দয়া করে আমার একাউন্টের ডিভাইস রিসেট করে দিন।"
+
+    Column {
+        Text(
+            text = msg,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        Button(
+            onClick = onRetry,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy
+        ) {
+            Text("আবার চেষ্টা করুন")
+        }
+        Spacer(Modifier.height(10.dp))
+        Button(
+            onClick = { onWhatsapp(waMsg) },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy
+        ) {
+            Text("অ্যাডমিনকে WhatsApp এ জানান")
+        }
+        ErrorText(err)
+    }
+}
+
+@Composable
+private fun ErrorText(err: String) {
+    if (err.isNotEmpty()) {
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = err,
+            color = MaterialTheme.colorScheme.error,
+            fontSize = 12.5.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun OtpDialog(code: String, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "আপনার OTP কোড",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = code,
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 6.sp
+                    ),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "২ মিনিটের মধ্যে কোডটি লিখুন",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppColors.extra.muted,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(18.dp))
+                Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                    Text("ঠিক আছে")
+                }
+            }
+        }
+    }
+}
+
+private fun mmss(s: Int): String {
+    val m = s / 60
+    val sec = s % 60
+    return "%02d:%02d".format(m, sec)
+}
+
+// ViewModel
+enum class LoginStep { PHONE, OTP, PIN, DEVICE }
+enum class LoginMode { LOGIN, SETUP_EXISTING, SETUP_NEW }
+enum class BlockReason { BOUND, USED }
+
+data class LoginState(
+    val step: LoginStep = LoginStep.PHONE,
+    val mode: LoginMode = LoginMode.LOGIN,
+    val blockReason: BlockReason = BlockReason.BOUND,
+    val phoneIn: String = "",
+    val phoneNorm: String = "",
+    val otp: String = "",
+    val pin: String = "",
+    val pin2: String = "",
+    val otpCode: String = "",
+    val showOtpDialog: Boolean = false,
+    val leftSec: Int = 0,
+    val busy: Boolean = false,
+    val err: String = "",
+    val success: Boolean = false
+)
+
+class LoginViewModel : ViewModel() {
+    private val _state = MutableStateFlow(LoginState())
+    val state = _state.asStateFlow()
+
+    private var user: JSONObject? = null
+    private var timerJob: Job? = null
+
+    fun setPhone(v: String) {
+        _state.value = _state.value.copy(phoneIn = v, err = "")
+    }
+
+    fun setOtp(v: String) {
+        _state.value = _state.value.copy(otp = v, err = "")
+    }
+
+    fun setPin(v: String) {
+        _state.value = _state.value.copy(pin = v, err = "")
+    }
+
+    fun setPin2(v: String) {
+        _state.value = _state.value.copy(pin2 = v, err = "")
+    }
+
+    fun reset() {
+        timerJob?.cancel()
+        user = null
+        _state.value = LoginState()
+    }
+
+    fun onPhone(context: Context) {
+        val st = _state.value
+        val v = Phone.validate(st.phoneIn)
+        if (!v.ok) {
+            _state.value = st.copy(err = v.msg)
+            return
+        }
+        _state.value = st.copy(phoneNorm = v.phone, busy = true, err = "")
+
+        viewModelScope.launch {
+            try {
+                val repo = UserRepo(Api(context))
+                user = repo.findByPhone(v.phone)
+                val u = user
+                if (u != null) {
+                    if (u.optBoolean("is_blocked", false) && !Phone.isAdminPhone(u.optString("phone"))) {
+                        val reason = u.optString("blocked_reason", "")
+                        val msg = if (reason.isNotEmpty()) "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে: $reason। অ্যাডমিনের সাথে যোগাযোগ করুন।"
+                        else "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে। অ্যাডমিনের সাথে যোগাযোগ করুন।"
+                        _state.value = _state.value.copy(busy = false, err = msg)
+                        return@launch
+                    }
+                    afterUserKnown(context, u)
+                } else {
+                    startOtp(context, v.phone)
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(busy = false, err = e.message ?: "Error")
+            }
+        }
+    }
+
+    private suspend fun afterUserKnown(context: Context, u: JSONObject) {
+        val dev = Session.deviceId(context)
+        val stored = u.optString("device_id", "")
+        if (!Session.deviceEmpty(stored) && stored != dev) {
+            _state.value = _state.value.copy(
+                step = LoginStep.DEVICE,
+                blockReason = BlockReason.BOUND,
+                busy = false
+            )
+        } else {
+            val mode = if (PinHash.hasPin(u)) LoginMode.LOGIN else LoginMode.SETUP_EXISTING
+            _state.value = _state.value.copy(
+                step = LoginStep.PIN,
+                mode = mode,
+                pin = "",
+                pin2 = "",
+                busy = false
+            )
+        }
+    }
+
+    private suspend fun startOtp(context: Context, phone: String) {
+        val repo = UserRepo(Api(context))
+        val code = repo.requestOtp(phone)
+        _state.value = _state.value.copy(
+            step = LoginStep.OTP,
+            otp = "",
+            otpCode = code,
+            showOtpDialog = true,
+            busy = false
+        )
+        startResend()
+    }
+
+    fun dismissOtpDialog() {
+        _state.value = _state.value.copy(showOtpDialog = false)
+    }
+
+    private fun startResend() {
+        timerJob?.cancel()
+        _state.value = _state.value.copy(leftSec = 120)
+        timerJob = viewModelScope.launch {
+            for (i in 119 downTo 0) {
+                delay(1000)
+                _state.value = _state.value.copy(leftSec = i)
+            }
+        }
+    }
+
+    fun onResend(context: Context) {
+        val st = _state.value
+        _state.value = st.copy(busy = true, err = "")
+        viewModelScope.launch {
+            try {
+                val repo = UserRepo(Api(context))
+                val code = repo.requestOtp(st.phoneNorm)
+                _state.value = _state.value.copy(
+                    otpCode = code,
+                    showOtpDialog = true,
+                    busy = false
+                )
+                startResend()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(busy = false, err = e.message ?: "Error")
+            }
+        }
+    }
+
+    fun onOtp(context: Context) {
+        val st = _state.value
+        val c = st.otp.trim()
+        if (c.length != 6) {
+            _state.value = st.copy(err = "৬ ডিজিটের কোড দিন")
+            return
+        }
+        _state.value = st.copy(busy = true, err = "")
+
+        viewModelScope.launch {
+            try {
+                val repo = UserRepo(Api(context))
+                if (!repo.verifyOtp(st.phoneNorm, c)) {
+                    _state.value = _state.value.copy(busy = false, err = "দয়া করে সঠিক ওটিপি লিখুন")
+                    return@launch
+                }
+                val devUser = repo.findByDevice(Session.deviceId(context))
+                if (devUser != null) {
+                    _state.value = _state.value.copy(
+                        step = LoginStep.DEVICE,
+                        blockReason = BlockReason.USED,
+                        busy = false
+                    )
+                } else {
+                    _state.value = _state.value.copy(
+                        step = LoginStep.PIN,
+                        mode = LoginMode.SETUP_NEW,
+                        pin = "",
+                        pin2 = "",
+                        busy = false
+                    )
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(busy = false, err = e.message ?: "Error")
+            }
+        }
+    }
+
+    fun onPin(context: Context, onSignup: () -> Unit) {
+        val st = _state.value
+        if (st.pin.length != 4) {
+            _state.value = st.copy(err = "৪ ডিজিটের PIN দিন")
+            return
+        }
+        if (st.mode != LoginMode.LOGIN && st.pin != st.pin2) {
+            _state.value = st.copy(err = "দুটি PIN মিলছে না")
+            return
+        }
+        _state.value = st.copy(busy = true, err = "")
+
+        viewModelScope.launch {
+            try {
+                val api = Api(context)
+                val repo = UserRepo(api)
+                val dev = Session.deviceId(context)
+                val u = user
+
+                when (st.mode) {
+                    LoginMode.LOGIN -> {
+                        if (u == null) {
+                            _state.value = _state.value.copy(busy = false, err = "একাউন্ট খুঁজে পাওয়া যায়নি")
+                            return@launch
+                        }
+                        if (!PinHash.verify(u, st.pin)) {
+                            _state.value = _state.value.copy(busy = false, pin = "", err = "PIN সঠিক নয়")
+                            return@launch
+                        }
+                        if (Session.deviceEmpty(u.optString("device_id", ""))) {
+                            val existing = repo.findByDevice(dev, u.optInt("id"))
+                            if (existing != null) {
+                                _state.value = _state.value.copy(
+                                    step = LoginStep.DEVICE,
+                                    blockReason = BlockReason.USED,
+                                    busy = false
+                                )
+                                return@launch
+                            }
+                            api.patch(
+                                "app_users?id=eq.${u.getInt("id")}",
+                                JSONObject().put("device_id", dev)
+                            )
+                            u.put("device_id", dev)
+                        }
+                        finish(context, u)
+                    }
+
+                    LoginMode.SETUP_EXISTING -> {
+                        if (u == null) {
+                            _state.value = _state.value.copy(busy = false, err = "একাউন্ট খুঁজে পাওয়া যায়নি")
+                            return@launch
+                        }
+                        val existing = repo.findByDevice(dev, u.optInt("id"))
+                        if (existing != null) {
+                            _state.value = _state.value.copy(
+                                step = LoginStep.DEVICE,
+                                blockReason = BlockReason.USED,
+                                busy = false
+                            )
+                            return@launch
+                        }
+                        val salt = PinHash.newSalt()
+                        val hash = PinHash.hash(st.pin, salt)
+                        api.patch(
+                            "app_users?id=eq.${u.getInt("id")}",
+                            JSONObject()
+                                .put("password_salt", salt)
+                                .put("password_hash", hash)
+                                .put("device_id", dev)
+                        )
+                        u.put("device_id", dev)
+                        finish(context, u)
+                    }
+
+                    LoginMode.SETUP_NEW -> {
+                        context.getSharedPreferences("kp_signup", Context.MODE_PRIVATE).edit()
+                            .putString(
+                                "kp_signup",
+                                JSONObject()
+                                    .put("phone", st.phoneNorm)
+                                    .put("pin", st.pin)
+                                    .toString()
+                            )
+                            .apply()
+                        _state.value = _state.value.copy(busy = false)
+                        onSignup()
+                    }
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(busy = false, err = e.message ?: "Error")
+            }
+        }
+    }
+
+    private fun finish(context: Context, u: JSONObject) {
+        Session.set(context, u)
+        _state.value = _state.value.copy(busy = false, success = true)
+    }
+
+    fun onRetry(context: Context) {
+        val st = _state.value
+        _state.value = st.copy(busy = true, err = "")
+
+        viewModelScope.launch {
+            try {
+                val repo = UserRepo(Api(context))
+                if (st.blockReason == BlockReason.BOUND) {
+                    val u = repo.findByPhone(st.phoneNorm)
+                    if (u == null) {
+                        _state.value = _state.value.copy(busy = false, err = "একাউন্ট খুঁজে পাওয়া যায়নি")
+                        return@launch
+                    }
+                    if (u.optBoolean("is_blocked", false) && !Phone.isAdminPhone(u.optString("phone"))) {
+                        _state.value =
+                            _state.value.copy(busy = false, err = "আপনার অ্যাকাউন্ট ব্লক করা হয়েছে")
+                        return@launch
+                    }
+                    user = u
+                    val stored = u.optString("device_id", "")
+                    val dev = Session.deviceId(context)
+                    if (Session.deviceEmpty(stored) || stored == dev) {
+                        val mode = if (PinHash.hasPin(u)) LoginMode.LOGIN else LoginMode.SETUP_EXISTING
+                        _state.value = _state.value.copy(
+                            step = LoginStep.PIN,
+                            mode = mode,
+                            pin = "",
+                            pin2 = "",
+                            busy = false
+                        )
+                    } else {
+                        _state.value = _state.value.copy(
+                            busy = false,
+                            err = "এখনো অ্যাডমিন ডিভাইস রিসেট করেননি, একটু পর আবার চেষ্টা করুন"
+                        )
+                    }
+                } else {
+                    val existing = repo.findByDevice(Session.deviceId(context))
+                    if (existing != null) {
+                        _state.value =
+                            _state.value.copy(busy = false, err = "এই ডিভাইসে এখনো অন্য একাউন্ট বাঁধা আছে")
+                    } else {
+                        val u = user
+                        if (u != null) {
+                            val mode = if (PinHash.hasPin(u)) LoginMode.LOGIN else LoginMode.SETUP_EXISTING
+                            _state.value = _state.value.copy(
+                                step = LoginStep.PIN,
+                                mode = mode,
+                                pin = "",
+                                pin2 = "",
+                                busy = false
+                            )
+                        } else {
+                            _state.value = _state.value.copy(
+                                step = LoginStep.PIN,
+                                mode = LoginMode.SETUP_NEW,
+                                pin = "",
+                                pin2 = "",
+                                busy = false
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(busy = false, err = e.message ?: "Error")
+            }
+        }
+    }
+
+    fun openWhatsapp(context: Context, msg: String) {
+        val url = "https://wa.me/${BuildConfig.ADMIN_WA}?text=${URLEncoder.encode(msg, "UTF-8")}"
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(err = "WhatsApp খোলা যায়নি")
+        }
     }
 }
