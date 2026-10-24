@@ -1,0 +1,23 @@
+{
+  "done": [
+    "2",
+    "3",
+    "4a",
+    "4b",
+    "4c",
+    "4d",
+    "4e",
+    "5"
+  ],
+  "notes": {
+    "2": "✅ শেষ: Login স্ক্রিন (ফোন, OTP, PIN, ডিভাইস ব্লক ফ্লো) | পরের ধাপ: Signup",
+    "3": "শেষ",
+    "4a": "✅ শেষ: TaskScreen কাঠামো (৩টি ট্যাব PlaceholderPane, TopBar myCount ব্যাজসহ, BottomNav) | পরের ধাপ: 4b (Dashboard + BookGrid) — helpers.js-এ PM, KIND, BADGES, streakInfo, goalToast, resumeTarget লজিক TaskViewModel-এ বা নতুন TaskHelpers.kt-এ বানাতে হবে; Dashboard.jsx ও BookGrid.jsx লাগবে",
+    "4b": "✅ শেষ: TaskDashboard.kt ও BookGrid.kt বানানো হয়েছে — দৈনিক লক্ষ্য, টানা দিন, ব্যাজ, \"চালিয়ে যান\", কিতাবের তালিকা (কভার, অগ্রগতি বার, রেট, \"শেষ কাজ\" ট্যাগ) ও সার্চ | পরের ধাপ: 4c. পেমেন্ট ট্যাব বা 4d. র‍্যাংক ট্যাব বা 4e. ডায়ালগ (GoalDialog ইত্যাদি) — আপনার নির্দেশ অনুযায়ী। Dashboard-এ onGoal ও onResume এখনো placeholder (আসল লজিক ধাপ 4e ও 7-এ)।",
+    "4c": "✅ শেষ: PayPane.kt (আয়ের টাইল, পূর্বাভাস, রিকোয়েস্ট, ইতিহাস, কিতাব অনুযায়ী আয়, সংশোধন, ভুলের হার সতর্কতা) + RequestDialog.kt + Money.kt/TaskModels.kt/TaskHelpers.kt | ডাটা লজিক React-এর summarize/rateOf অনুযায়ী",
+    "4d": "✅ শেষ: RankPane.kt (আজ/সপ্তাহ/সব সময়, rpc/leaderboard + ফলব্যাক, ৬০ সেকেন্ড ক্যাশ, নিজের অবস্থান) | পরের ধাপ: 4e (GoalDialog, NoticeDialog, GuideDialog)",
+    "4e": "✅ শেষ: TaskDialogs.kt (GoalDialog, NoticeDialog) + GuideDialog.kt (অ্যানিমেটেড ১০ ধাপ, স্ক্রিনশট res/drawable-nodpi-তে) + TaskViewModel নোটিশ/গাইড লজিক + TaskScreen-এ ডায়ালগ ও প্রোফাইল ব্যাজ | পরের ধাপ: 5 (Profile) — GuideRequest.pending = true দিয়ে গাইড খোলার বোতাম",
+    "5": "✅ শেষ: Profile (ProfileScreen/ViewModel, Auth.requireAuth, ThemeStore, ব্লকড স্ক্রিন, পেমেন্ট নাম্বার ডায়ালগ, নোটিশ) | পরের ধাপ: 6 (Support) — Routes.SUPPORT placeholder বদলাতে হবে"
+  },
+  "failed": []
+}
