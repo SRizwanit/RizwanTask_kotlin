@@ -4,9 +4,17 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-fun cfg(key: String): String = project.findProperty(key)?.toString()
-    ?: providers.gradleProperty(key).orNull
-    ?: ""
+// local.properties (লোকাল বিল্ড) -> Gradle -P/gradle.properties -> Environment variable (CI)
+val localProps = java.util.Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
+fun cfg(key: String): String =
+    localProps.getProperty(key)?.takeIf { it.isNotBlank() }
+        ?: project.findProperty(key)?.toString()?.takeIf { it.isNotBlank() }
+        ?: System.getenv(key)?.takeIf { it.isNotBlank() }
+        ?: ""
 
 android {
     namespace = "com.srizwan.task"
@@ -58,6 +66,13 @@ android {
 
 kotlin {
     jvmToolchain(17)
+}
+
+// SB_URL/SB_KEY ছাড়া রিলিজ বিল্ড করলে অ্যাপে "no protocol" error আসে — তাই বিল্ডেই থামিয়ে দিই
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.name.contains("Release") } && (cfg("SB_URL").isBlank() || cfg("SB_KEY").isBlank())) {
+        throw GradleException("SB_URL / SB_KEY সেট করা নেই। GitHub Secrets এ SB_URL, SB_KEY, ADMIN_PHONE, ADMIN_WA যোগ করুন।")
+    }
 }
 
 dependencies {
